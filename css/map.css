@@ -1,0 +1,187 @@
+body,html{
+    width:100%;
+    height:100%;
+    margin:0;
+    font-family:"Microsoft YaHei"
+}
+#mapDiv{
+    width:100%;height:100%
+}
+input,b,p{
+    margin-left:5px;font-size:30px
+}
+.search-container {
+    display: flex; /* 使用flex布局 */
+    align-items: center; /* 垂直居中 */
+    justify-content: center; /* 水平居中 */
+    position: fixed; /* 固定定位 */
+    top: 0; /* 距离窗口顶部0像素 */
+    left: 0%; /* 水平居中 */
+    transform: translateX(0%); /* 偏移自身宽度的一半，实现居中效果 */
+    width: 100%; /* 容器宽度充满整个窗口 */
+    max-width: 700px; /* 设置最大宽度，足以容纳两个控件 */
+    padding: 10px;
+    background-color: #fff; /* 背景色，与body区分 */
+    z-index: 1000; /* 确保在最顶层 */
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* 添加阴影效果 */
+}
+#keyWord {
+    flex-grow: 1; /* 让搜索框扩展以填充可用空间 */
+    padding: 15px;
+    margin-right: 10px; /* 添加右边距 */
+    font-size: 30px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+#search {
+    padding: 18px 25px;
+    font-size: 25px;
+    color: #fff;
+    background-color: #007bff;
+    border: none;
+    border-radius: 15px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+#search:hover {
+    background-color: #0056b3;
+}
+
+#gps {
+    padding: 18px 25px;
+    font-size: 25px;
+    color: #fff;
+    background-color: #007bff;
+    border: none;
+    border-radius: 15px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+#gps:hover {
+    background-color: #0056b3;
+}
+#device {
+    padding: 18px 25px;
+    font-size: 25px;
+    color: #fff;
+    background-color: #007bff;
+    border: none;
+    border-radius: 15px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+#device:hover {
+    background-color: #0056b3;
+}
+#line {
+    padding: 18px 25px;
+    font-size: 25px;
+    color: #fff;
+    background-color: #007bff;
+    border: none;
+    border-radius: 15px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+#line:hover {
+    background-color: #0056b3;
+}
+/* 表单 */
+#form-container {
+    width: 350px;
+    height: 100%;
+    position: fixed;
+    top: 0;
+    right: -350px;
+    background-color: #fff;
+    box-shadow: -5px 0 5px rgba(0, 0, 0, 0.2);
+    transition: right 0.5s;
+    padding: 20px;
+    box-sizing: border-box;
+    z-index: 1000;
+    overflow-y: auto;
+  }
+
+  #submit {
+    cursor: pointer;
+    padding: 10px 20px;
+    background-color: #5cb85c;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    margin: 20px;
+    font-size: 16px;
+  }
+  #navButton {
+    cursor: pointer;
+    padding: 10px 20px;
+    background-color: #5cb85c;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    margin-bottom: 20px;
+    font-size: 16px;
+    width: 100%;
+  }
+  #uploadProgress {
+    cursor: pointer;
+    padding: 20px 0px;
+    margin-bottom: 0px;
+    width: 100%;
+  }
+  #fileInput {
+    cursor: pointer;
+    padding: 0px 0px;
+    background-color: #5cb85c;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    margin-bottom: 10px;
+    font-size: 16px;
+  }
+  form {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .form-group {
+    margin-bottom: 15px;
+  }
+
+  label {
+    margin-bottom: 5px;
+    display: block;
+    color: #666;
+    font-size: 20px;
+  }
+
+  input[type="text"],
+  input[type="number"],
+  input[type="tel"],
+  textarea {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    box-sizing: border-box;
+    font-size: 25px;
+  }
+
+  input[type="submit"] {
+    background-color: #5cb85c;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 25px;
+  }
+
+  input[type="submit"]:hover {
+    background-color: #4cae4c;
+  }
