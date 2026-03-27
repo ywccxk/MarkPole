@@ -31,20 +31,19 @@ function getImgTag(imgUrl) {
     return `<a href='${originalUrl}' target='_blank'><img style='float:left;margin:5px -15px' src='${thumbUrl}' width='120' height='135' onerror="this.src='${originalUrl}'"/></a>`;
 }
 
-// 地图初始化
+// 地图初始化 - 使用后端代理隐藏Token
 function onLoad() {
-    // 从CONFIG获取天地图Token
-    const tk = (typeof CONFIG !== 'undefined' && CONFIG.tiandituTk) ? CONFIG.tiandituTk : '';
-    
-    if (!tk) {
-        console.error('天地图Token未配置，请检查config.php中的tianditu.tk设置');
-        alert('天地图Token未配置，请联系管理员');
+    // 检测天地图API是否加载成功
+    if (typeof T === 'undefined' || !T.Map) {
+        console.error('天地图API加载失败，请检查网络连接');
+        alert('天地图API加载失败，请刷新页面或检查网络连接');
         return;
     }
     
-    const imageURL = "http://t0.tianditu.gov.cn/img_w/wmts?" +
-        "SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=img&STYLE=default&TILEMATRIXSET=w&FORMAT=tiles" +
-        "&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&tk=" + tk;
+    // 通过后端代理获取地图瓦片，Token由PHP后端添加，不暴露在客户端
+    const tileProxyUrl = './phpapi/tile_proxy.php?layer=img';
+    
+    const imageURL = tileProxyUrl + "&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}";
     
     const lay = new T.TileLayer(imageURL, {minZoom: 1, maxZoom: 18});
     map = new T.Map("mapDiv", {layers: [lay]});

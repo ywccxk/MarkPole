@@ -1,6 +1,7 @@
 <?php
 /**
  * 主入口文件 - 动态加载配置
+ * Token保护：通过后端代理加载天地图API，Token不暴露在HTML源代码中
  */
 
 require_once __DIR__ . '/phpapi/Db.php';
@@ -35,7 +36,8 @@ try {
     <meta http-equiv="content-type" content="text/html; charset=utf-8"/>
     <title><?php echo htmlspecialchars($siteName); ?></title>
     <link rel="icon" href="./ccxk.ico"/>
-    <script type="text/javascript" src="http://api.tianditu.gov.cn/api?v=4.0&tk=<?php echo htmlspecialchars($tiandituTk); ?>"></script>
+    <!-- 天地图API库 - 通过后端代理加载，Token不暴露 -->
+    <script type="text/javascript" src="./phpapi/api_proxy.php"></script>
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/jsqr@latest/dist/jsQR.js"></script>
     <link rel="stylesheet" href="./css/map.css">
     <style>
@@ -109,13 +111,12 @@ try {
 </body>
 
 <script>
-    // 全局配置 - 从PHP传入
+    // 全局配置 - 从PHP传入（Token不再暴露在前端，通过后端代理访问地图）
     var CONFIG = {
         centerLng: <?php echo $centerLng; ?>,
         centerLat: <?php echo $centerLat; ?>,
         zoom: <?php echo $zoom; ?>,
-        imgBaseUrl: '<?php echo addslashes($imgBaseUrl); ?>',
-        tiandituTk: '<?php echo addslashes($tiandituTk); ?>'
+        imgBaseUrl: '<?php echo addslashes($imgBaseUrl); ?>'
     };
 </script>
 

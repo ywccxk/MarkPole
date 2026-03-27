@@ -39,14 +39,41 @@
 │   ├── post.php           # 提交/更新API
 │   ├── upload.php         # 图片上传API
 │   ├── config_api.php     # 配置获取API
-│   └── myAction.php       # 数据库操作类（备用）
+│   ├── tile_proxy.php     # 地图瓦片代理（隐藏Token）
+│   ├── api_proxy.php      # 天地图API代理（隐藏Token）
 ├── install/
 │   └── index.php          # 安装向导
 └── img/                   # 图片存储目录
 │   └── thumb/             # 缩略图目录
-├── python/             # python脚本目录（获取无人机图片经纬度，上传数据）
+├── python/                # python脚本目录（获取无人机图片经纬度，上传数据）
 
 ```
+
+## 安全说明
+
+### Token保护机制
+
+系统已实现天地图Token后端代理机制，保护您的API Token不被暴露在HTML源代码中：
+
+**两种代理保护：**
+
+1. **API代理** (`api_proxy.php`) - 加载天地图JavaScript API
+   - 工作流程：前端 → `./phpapi/api_proxy.php` → 天地图API
+   - 效果：HTML源代码中的 `<script src="...">` 不包含Token
+
+2. **瓦片代理** (`tile_proxy.php`) - 加载地图瓦片
+   - 工作流程：前端 → `./phpapi/tile_proxy.php?x=..&y=..&z=..` → 天地图API
+   - 效果：地图瓦片请求不暴露Token
+
+**Token存储位置：**
+- Token仅存储在服务器端 `config.php` 配置文件中
+
+**优势：**
+- 用户通过"查看页面源代码"无法看到Token
+- 防止Token被恶意用户提取滥用
+- 瓦片代理支持多节点自动切换（t0/t1/t2），提高可用性
+
+**注意：** 开发者工具的Network面板中仍可能看到Token（因为浏览器需要用Token请求API），但这已是浏览器层面的正常行为，无法完全避免。
 
 ## 安装部署
 
@@ -220,6 +247,22 @@ Fields:
 ```
 GET /phpapi/config_api.php
 ```
+
+### 地图瓦片代理（Token保护）
+
+```
+GET /phpapi/tile_proxy.php?x=瓦片X坐标&y=瓦片Y坐标&z=缩放级别&layer=图层类型
+```
+
+参数说明：
+- `x`, `y`, `z`：瓦片坐标和缩放级别（天地图自动填充）
+- `layer`：图层类型，可选值：
+  - `img`：影像底图（默认）
+  - `vec`：矢量地图
+  - `cia`：影像标注
+  - `cva`：矢量标注
+
+**注意**：此接口用于隐藏Token，前端通过此代理请求地图瓦片，无需暴露Token
 
 ## 常见问题
 
