@@ -8,26 +8,27 @@
 - **地图标注**：在地图上标记杆塔位置，支持点击添加新标记点
 - **杆塔搜索**：通过杆号搜索，快速定位目标杆塔
 - **设备筛选**：一键筛选显示带有刀闸或开关的设备
-- **线路显示**：根据上级杆关系自动绘制线路走向，裸导显示红色
-- **图片上传**：支持上传杆塔照片，前端自动压缩处理
+- **线路显示**：根据上级杆关系自动绘制线路走向，裸导线路显示红色
+- **图片上传**：支持上传杆塔照片，前端自动压缩处理（宽度限制2000px，USM锐化提升清晰度）
+- **图片管理**：自动生成缩略图，支持原图/缩略图智能切换
 - **高德导航**：点击即可调用高德地图APP导航至目标杆塔
 - **信息管理**：完整的杆塔信息管理（杆号、上级杆、刀闸、开关、裸导、经纬度、地址、备注）
+- **实时更新**：表单提交后前端即时更新标记点，无需刷新页面
 
 ## 技术栈
 
 - **前端**：HTML + CSS + JavaScript
-- **地图API**：天地图（Tianditu WMTS）
+- **地图API**：天地图（Tianditu WMTS + JavaScript API）
 - **后端**：PHP + MySQL
-- **图片处理**：前端Canvas压缩
+- **图片处理**：前端Canvas压缩 + 后端GD库缩略图生成
+- **前端库**：jsQR（二维码识别，待扩展）
 
 ## 目录结构
 
 ```
 /
 ├── index.php              # 主入口页面
-├── config.php             # 配置文件（安装后生成）
-├── .htaccess              # Apache配置
-├── .user.ini              # PHP配置
+├── config.php             # 配置文件（安装后自动生成）
 ├── ccxk.ico               # 网站图标
 ├── README.md              # 说明文档
 ├── css/
@@ -43,9 +44,13 @@
 │   └── api_proxy.php      # 天地图API代理（隐藏JS API Token）
 ├── install/
 │   └── index.php          # 安装向导
-└── img/                   # 图片存储目录
-    └── thumb/             # 缩略图目录
-├── python/                # Python脚本目录（获取无人机图片经纬度，上传数据）
+├── img/                   # 图片存储目录
+│   └── thumb/             # 缩略图目录
+└── python/                # Python工具脚本
+    ├── 上传数据.py        # GPS数据批量上传脚本
+    ├── 后缀小写.py        # 文件名批量处理脚本
+    ├── 图片压缩.py        # 图片压缩脚本
+    └── 提取图片经纬度.py  # 无人机图片EXIF信息提取
 ```
 
 ## 安全说明
@@ -75,6 +80,7 @@
 - MySQL >= 5.7
 - PDO扩展
 - mbstring扩展
+- GD扩展（图片处理，用于生成缩略图）
 
 ### 安装步骤
 
@@ -240,28 +246,73 @@ Fields:
 GET /phpapi/config_api.php
 ```
 
+## 数据库表结构
+
+系统安装后会自动创建 `map_info_table` 数据表，结构如下：
+
+```sql
+CREATE TABLE `map_info_table` (
+    `id` INT AUTO_INCREMENT PRIMARY KEY,
+    `PoleName` VARCHAR(100) NOT NULL UNIQUE,      -- 杆号（唯一标识）
+    `UpperPole` VARCHAR(100) DEFAULT '',            -- 上级杆（线路关联）
+    `DisconnectSwitch` VARCHAR(100) DEFAULT '',    -- 刀闸编号
+    `CircuitBreaker` VARCHAR(100) DEFAULT '',       -- 开关编号
+    `BareConductor` VARCHAR(100) DEFAULT '',        -- 裸导线规格
+    `longitude` DECIMAL(10, 6) DEFAULT 0,           -- 经度坐标
+    `latitude` DECIMAL(10, 6) DEFAULT 0,            -- 纬度坐标
+    `Address` TEXT,                                  -- 详细地址
+    `Note` TEXT,                                     -- 备注信息
+    `ImgUrl` VARCHAR(255) DEFAULT '',               -- 图片文件名
+    `CreateTime` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    `UpdateTime` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX `idx_polename` (`PoleName`),
+    INDEX `idx_upperpole` (`UpperPole`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+```
+
 ## 常见问题
 
 ### 1. 地图不显示
 
 - 检查天地图Token是否正确配置
 - 检查网络连接是否正常
+- 查看浏览器控制台是否有错误信息
 
 ### 2. 数据库连接失败
 
 - 确认数据库 credentials 正确
 - 确认数据库用户有相应权限
 - 检查防火墙设置
+- 确认数据库已创建
 
 ### 3. 图片上传失败
 
-- 检查 `img/` 目录权限
-- 检查PHP上传大小限制
+- 检查 `img/` 目录权限（需可写）
+- 检查PHP上传大小限制（php.ini中upload_max_filesize）
+- 确认GD扩展已启用
 
 ### 4. 搜索不到数据
 
 - 确认数据库中已有数据
 - 检查搜索关键词是否正确
+- 尝试模糊搜索（如搜索"01"可匹配"001"、"010"等）
+
+### 5. 线路不显示
+
+- 确认上级杆字段已正确填写
+- 检查上下级杆的经纬度是否有效
+
+### 6. 天地图API加载失败
+
+- 检查服务器网络能否访问 tianditu.gov.cn
+- 确认Token是否已过期
+- 尝试重新申请新的Token
+
+### 7. 图片显示问题
+
+- 确认 img/ 目录权限正确
+- 如使用CDN，确认域名配置正确
+- 检查浏览器控制台是否有404错误
 
 ## 页面预览
 

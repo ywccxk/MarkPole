@@ -15,12 +15,9 @@ try {
     // 设置上传目录
     $uploadDir = __DIR__ . '/../img/';
     
-    // 确保上传目录存在并且可写
+    // 确保上传目录存在
     if (!is_dir($uploadDir)) {
-        if (!mkdir($uploadDir, 0755, true)) {
-            echo "上传目录创建失败！";
-            exit;
-        }
+        mkdir($uploadDir, 0755, true);
     }
     
     if (!is_writable($uploadDir)) {
@@ -28,7 +25,7 @@ try {
         exit;
     }
     
-    // 检查是否有文件被上传
+    // 检查文件上传
     if (!isset($_FILES['image']) || $_FILES['image']['error'] !== UPLOAD_ERR_OK) {
         echo "没有文件被上传或上传出错！";
         exit;
@@ -50,32 +47,94 @@ try {
         exit;
     }
     
-    // 获取客户端发送的新文件名
+    // 获取并处理文件名
     $newFileName = $_POST['newFileName'] ?? $_FILES['image']['name'];
-    
-    // 安全检查：只允许特定扩展名
-    $newFileName = preg_replace('/[^a-zA-Z0-9_\-\.]/', '', $newFileName);
+    $newFileName = preg_replace('/[^\w\-\.#]/u', '', $newFileName);
     $newFileName = basename($newFileName);
     
-    // 完整的文件路径
+    if (empty($newFileName)) {
+        echo "文件名无效！";
+        exit;
+    }
+    
+    // 移动上传文件
     $filePath = $uploadDir . $newFileName;
     
-    // 移动上传的文件到指定目录
-    if (move_uploaded_file($_FILES['image']['tmp_name'], $filePath)) {
-        // 文件上传成功
-        echo "文件上传成功！新文件名为：" . $newFileName;
-        
-        // 生成缩略图（可选功能）
-        $thumbDir = $uploadDir . 'thumb/';
-        if (!is_dir($thumbDir)) {
-            mkdir($thumbDir, 0755, true);
-        }
-        
-        // 如果是图片文件，可以在这里添加缩略图生成逻辑
-        // 目前前端已经做了压缩处理，这里暂时保留原图
-        
-    } else {
+    if (!move_uploaded_file($_FILES['image']['tmp_name'], $filePath)) {
         echo "文件移动失败！";
+        exit;
+    }
+    
+    echo "文件上传成功！新文件名为：" . $newFileName;
+    
+    // 生成缩略图
+    if (function_exists('imagecreatetruecolor')) {
+        $imageInfo = @getimagesize($filePath);
+        
+        if ($imageInfo) {
+            $width = $imageInfo[0];
+            $height = $imageInfo[1];
+            $imageType = $imageInfo[2];
+            
+            // 只处理宽度大于500px的图片
+            if ($width > 500) {
+                $thumbDir = $uploadDir . 'thumb/';
+                
+                if (!is_dir($thumbDir)) {
+                    mkdir($thumbDir, 0755, true);
+                }
+                
+                if (is_writable($thumbDir)) {
+                    $thumbWidth = 500;
+                    $thumbHeight = round($height * (500 / $width));
+                    
+                    // 创建源图像资源
+                    $srcImg = null;
+                    switch ($imageType) {
+                        case IMAGETYPE_JPEG:
+                            $srcImg = imagecreatefromjpeg($filePath);
+                            break;
+                        case IMAGETYPE_PNG:
+                            $srcImg = imagecreatefrompng($filePath);
+                            break;
+                        case IMAGETYPE_GIF:
+                            $srcImg = imagecreatefromgif($filePath);
+                            break;
+                    }
+                    
+                    if ($srcImg) {
+                        // 创建缩略图
+                        $thumbImg = imagecreatetruecolor($thumbWidth, $thumbHeight);
+                        
+                        // 处理透明通道
+                        if ($imageType === IMAGETYPE_PNG || $imageType === IMAGETYPE_GIF) {
+                            imagealphablending($thumbImg, false);
+                            imagesavealpha($thumbImg, true);
+                        }
+                        
+                        // 缩放图片
+                        imagecopyresampled($thumbImg, $srcImg, 0, 0, 0, 0, $thumbWidth, $thumbHeight, $width, $height);
+                        
+                        // 保存缩略图
+                        $thumbPath = $thumbDir . $newFileName;
+                        
+                        if ($imageType === IMAGETYPE_PNG) {
+                            imagepng($thumbImg, $thumbPath);
+                        } elseif ($imageType === IMAGETYPE_GIF) {
+                            imagegif($thumbImg, $thumbPath);
+                        } else {
+                            imagejpeg($thumbImg, $thumbPath, 85);
+                        }
+                        
+                        // 释放内存
+                        imagedestroy($srcImg);
+                        imagedestroy($thumbImg);
+                        
+                        echo " (缩略图已生成:{$thumbWidth}x{$thumbHeight})";
+                    }
+                }
+            }
+        }
     }
     
 } catch (Exception $e) {

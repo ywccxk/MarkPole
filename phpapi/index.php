@@ -7,13 +7,6 @@ require_once './Db.php';
 header("Access-Control-Allow-Origin: *");
 header("Content-Type: application/json; charset=utf-8");
 
-// 计算中文字符串长度
-function utf8_strlen($string = null) {
-    if ($string === null) return 0;
-    preg_match_all("/./us", $string, $match);
-    return count($match[0]);
-}
-
 $output = array();
 $title = @$_GET['title'] ? $_GET['title'] : '';
 
@@ -27,7 +20,7 @@ if (empty($title)) {
 }
 
 // 检查搜索词长度
-if (utf8_strlen($title) > 100) {
+if (Db::utf8Strlen($title) > 100) {
     $output = array(
         'data' => "搜索关键词过长",
         'state' => 'error',

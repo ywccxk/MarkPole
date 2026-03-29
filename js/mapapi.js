@@ -6,6 +6,37 @@ var defaultLng = (typeof CONFIG !== 'undefined' && CONFIG.centerLng) ? CONFIG.ce
 var defaultLat = (typeof CONFIG !== 'undefined' && CONFIG.centerLat) ? CONFIG.centerLat : 26.64158;
 var imgBaseUrl = (typeof CONFIG !== 'undefined' && CONFIG.imgBaseUrl) ? CONFIG.imgBaseUrl : '';
 
+// 检查原图是否存在，isThumbLoaded表示缩略图是否成功加载
+function checkOriginal(originalUrl, defaultImg, imgElement, isThumbLoaded) {
+    if (isThumbLoaded) {
+        // 缩略图已存在，检查原图是否存在
+        const testImg = new Image();
+        testImg.onload = function() {
+            // 原图存在，链接指向原图
+            imgElement.parentElement.href = originalUrl;
+        };
+        testImg.onerror = function() {
+            // 原图不存在，链接指向缩略图（当前显示的就是缩略图）
+            imgElement.parentElement.href = imgElement.src;
+        };
+        testImg.src = originalUrl;
+    } else {
+        // 缩略图不存在，检查原图
+        const testImg = new Image();
+        testImg.onload = function() {
+            // 原图存在，显示原图，链接指向原图
+            imgElement.src = originalUrl;
+            imgElement.parentElement.href = originalUrl;
+        };
+        testImg.onerror = function() {
+            // 原图不存在，显示默认图
+            imgElement.src = defaultImg;
+            imgElement.parentElement.href = defaultImg;
+        };
+        testImg.src = originalUrl;
+    }
+}
+
 let datas = [];
 let allDatas = []; // 保存原始数据
 let deviceFilterActive = false; // 设备筛选状态
@@ -23,12 +54,20 @@ const formFields = ['polename', 'upperpole', 'disconnectswitch', 'circuitbreaker
 
 // 获取图片标签（优先缩略图，失败则原图）
 function getImgTag(imgUrl) {
-    if (!imgUrl) return '';
+    if (!imgUrl) return `<img style='float:left;margin:5px -15px' src='./img/xc.jpg' width='120' height='135'/>`;
+    
     const safeImgUrl = imgUrl.replace(/#/g, '%23');
+    // 优先使用配置的baseUrl，否则使用相对路径
     const baseUrl = imgBaseUrl || '';
+    // 缩略图路径
     const thumbUrl = baseUrl + '/img/thumb/' + safeImgUrl;
+    // 原图路径
     const originalUrl = baseUrl + '/img/' + safeImgUrl;
-    return `<a href='${originalUrl}' target='_blank'><img style='float:left;margin:5px -15px' src='${thumbUrl}' width='120' height='135' onerror="this.src='${originalUrl}'"/></a>`;
+    // 默认图片路径
+    const defaultImg = baseUrl + '/img/xc.jpg';
+    
+    // 先显示缩略图，根据加载情况动态修改显示和链接
+    return `<a href="${thumbUrl}" target="_blank"><img style='float:left;margin:5px -15px' src='${thumbUrl}' width='120' height='135' onload="checkOriginal('${originalUrl}', '${defaultImg}', this, true)" onerror="checkOriginal('${originalUrl}', '${defaultImg}', this, false)"/></a>`;
 }
 
 // 地图初始化 - 直接使用天地图API
@@ -258,9 +297,17 @@ document.getElementById('myForm').addEventListener('submit', function(event) {
             // 表单验证通过，准备发送数据
             var fileInput = document.getElementById('fileInput');
             var file = fileInput.files[0];
+            // 获取杆号用于文件名
+            var poleName = document.getElementById('polename').value;
+            
             if (file) {
-                uploadImage();
+                if (!poleName) {
+                    alert('请先填写杆号再上传图片！');
+                    return false;
+                }
+                uploadImage(poleName);
             }  
+            
       var formData = {
         polename: document.getElementById('polename').value,
         upperpole: document.getElementById('upperpole').value,
@@ -364,13 +411,17 @@ document.getElementById('myForm').addEventListener('submit', function(event) {
     }
   });
   
-  function uploadImage() {
-    event.preventDefault(); // 阻止表单默认提交行为
+  function uploadImage(poleName) {
     var fileInput = document.getElementById('fileInput');
     var file = fileInput.files[0];
     if (!file) {
         alert('请先选择一个图片文件！');
         return;
+    }
+    
+    // 使用传入的杆号作为文件名
+    if (!poleName) {
+        poleName = document.getElementById('polename').value;
     }
 
     // 读取文件为DataURL
@@ -378,41 +429,38 @@ document.getElementById('myForm').addEventListener('submit', function(event) {
     reader.onload = function(e) {
         var img = new Image();
         img.onload = function() {
-            // 图片尺寸限制配置
-            var maxWidth = 2048;  // 最大宽度
-            var maxHeight = 2048; // 最大高度
-            var quality = 0.85;  // 基础质量值
+            // 图片尺寸限制配置 - 宽度2000px，锁定宽高比
+            var maxWidth = 2000;  // 最大宽度
+            var quality = 0.9;    // 基础质量值
 
             // 计算新尺寸（等比缩放）
             var newWidth = img.width;
             var newHeight = img.height;
             
-            // 如果图片过大，先缩小尺寸
-            if (img.width > maxWidth || img.height > maxHeight) {
-                var ratio = Math.min(maxWidth / img.width, maxHeight / img.height);
-                newWidth = Math.round(img.width * ratio);
+            // 宽度大于2000px时，按比例缩小
+            if (img.width > maxWidth) {
+                var ratio = maxWidth / img.width;
+                newWidth = maxWidth;
                 newHeight = Math.round(img.height * ratio);
             }
 
-            // 根据文件大小动态调整质量
+            // 根据文件大小动态调整质量（不改变尺寸）
             if (file.size > 10 * 1024 * 1024) {
-                // 超过10MB：缩小尺寸 + 中等质量
-                newWidth = Math.round(newWidth * 0.5);
-                newHeight = Math.round(newHeight * 0.5);
+                // 超过10MB：降低质量
                 quality = 0.7;
             } else if (file.size > 5 * 1024 * 1024) {
-                // 5-10MB：适当缩小 + 较高质量
-                newWidth = Math.round(newWidth * 0.7);
-                newHeight = Math.round(newHeight * 0.7);
+                // 5-10MB：中等质量
                 quality = 0.75;
             } else if (file.size > 2 * 1024 * 1024) {
-                // 2-5MB：保持尺寸 + 高质量
+                // 2-5MB：高质量
                 quality = 0.8;
             } else if (file.size > 500 * 1024) {
-                // 500KB-2MB：高质量
+                // 500KB-2MB：较高质量
                 quality = 0.85;
+            } else {
+                // 500KB以下：最高质量
+                quality = 0.9;
             }
-            // 500KB以下：最高质量
 
             // 创建Canvas元素
             var canvas = document.createElement('canvas');
@@ -476,11 +524,10 @@ document.getElementById('myForm').addEventListener('submit', function(event) {
 
             // 创建FormData对象并发送
             var formData = new FormData();
-            // 生成新的文件名，例如使用时间戳
-            //var newFileName = 'image_' + Date.now() + '.jpg';
-            var newFileName = document.getElementById('polename').value + '.jpg';
-            formData.append('image', blob, newFileName); // 发送文件，并附带新的文件名
-            formData.append('newFileName', newFileName); // 发送新文件名到服务器
+            // 使用杆号作为文件名
+            var newFileName = poleName + '.jpg';
+            formData.append('image', blob, newFileName);
+            formData.append('newFileName', newFileName);
 
             var xhr = new XMLHttpRequest();
             xhr.open('POST', 'phpapi/upload.php', true);

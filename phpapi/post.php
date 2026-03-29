@@ -7,13 +7,6 @@ require_once './Db.php';
 header("Access-Control-Allow-Origin: *");
 header("Content-Type: application/json; charset=utf-8");
 
-// 计算中文字符串长度
-function utf8_strlen($string = null) {
-    if ($string === null) return 0;
-    preg_match_all("/./us", $string, $match);
-    return count($match[0]);
-}
-
 $output = array();
 
 // 获取JSON数据
@@ -31,7 +24,7 @@ if (empty($json) || !isset($json["polename"]) || empty($json["polename"])) {
 }
 
 // 检查数据长度
-if (utf8_strlen($jsonStr) > 2000) {
+if (Db::utf8Strlen($jsonStr) > 2000) {
     $output = array(
         'data' => "提交数据过长",
         'state' => 'error',

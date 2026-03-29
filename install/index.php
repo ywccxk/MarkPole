@@ -35,6 +35,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $checks['pdo_mysql'] = extension_loaded('pdo_mysql');
         $checks['mbstring'] = extension_loaded('mbstring');
         $checks['json'] = extension_loaded('json');
+        $checks['gd'] = function_exists('imagecreatetruecolor');
         
         // 检查目录权限
         $checks['img_dir'] = is_writable(__DIR__ . '/../img');
@@ -637,6 +638,12 @@ switch ($step) {
                             <span>JSON 扩展</span>
                             <span class="status <?php echo extension_loaded('json') ? 'pass' : 'fail'; ?>">
                                 <?php echo extension_loaded('json') ? '✓ 已启用' : '✗ 未启用'; ?>
+                            </span>
+                        </li>
+                        <li>
+                            <span>GD 扩展（图片处理）</span>
+                            <span class="status <?php echo function_exists('imagecreatetruecolor') ? 'pass' : 'fail'; ?>">
+                                <?php echo function_exists('imagecreatetruecolor') ? '✓ 已启用' : '✗ 未启用'; ?>
                             </span>
                         </li>
                         <li>

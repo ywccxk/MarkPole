@@ -122,6 +122,15 @@ class Db {
     }
     
     /**
+     * 计算UTF-8字符串长度
+     */
+    public static function utf8Strlen($string = null) {
+        if ($string === null) return 0;
+        preg_match_all("/./us", $string, $match);
+        return count($match[0]);
+    }
+    
+    /**
      * 执行查询并返回所有结果
      */
     public function query($sql, $params = []) {
