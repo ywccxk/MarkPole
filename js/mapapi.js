@@ -31,24 +31,31 @@ function getImgTag(imgUrl) {
     return `<a href='${originalUrl}' target='_blank'><img style='float:left;margin:5px -15px' src='${thumbUrl}' width='120' height='135' onerror="this.src='${originalUrl}'"/></a>`;
 }
 
-// 地图初始化 - 使用后端代理隐藏Token
+// 地图初始化 - 直接使用天地图API
 function onLoad() {
-    // 检测天地图API是否加载成功
     if (typeof T === 'undefined' || !T.Map) {
         console.error('天地图API加载失败，请检查网络连接');
         alert('天地图API加载失败，请刷新页面或检查网络连接');
         return;
     }
-    
-    // 通过后端代理获取地图瓦片，Token由PHP后端添加，不暴露在客户端
-    const tileProxyUrl = './phpapi/tile_proxy.php?layer=img';
-    
-    const imageURL = tileProxyUrl + "&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}";
-    
-    const lay = new T.TileLayer(imageURL, {minZoom: 1, maxZoom: 18});
-    map = new T.Map("mapDiv", {layers: [lay]});
+
+    fetch('./phpapi/config_api.php')
+        .then(res => res.json())
+        .then(configData => {
+            const tk = configData?.data?.tianditu?.tk || '';
+            const imageURL = `http://t0.tianditu.gov.cn/img_w/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=img&STYLE=default&TILEMATRIXSET=w&FORMAT=tiles&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&tk=${tk}`;
+            initMap(imageURL);
+        })
+        .catch(err => {
+            console.error('获取配置失败:', err);
+            initMap('');
+        });
+}
+
+function initMap(imageURL) {
+    const lay = new T.TileLayer(imageURL, { minZoom: 1, maxZoom: 18 });
+    map = new T.Map("mapDiv", { layers: [lay] });
     map.centerAndZoom(new T.LngLat(defaultLng, defaultLat), zoom);
-    
     map.enableScrollWheelZoom();
     map.addEventListener("click", MapClick);
     map.addControl(new T.Control.MapType());
@@ -91,38 +98,37 @@ function toggleForm(show) {
     formContainer.style.right = show ? '0' : '-350px';
 }
 
+// 生成信息窗口HTML内容（公共函数）
+function createInfoContent(item, index) {
+    return `<div style='margin:0px;'>
+        <div style='margin:10px 10px;'>
+            ${getImgTag(item.ImgUrl)}
+            <div style='margin:10px 0px 10px 120px;' onClick='infoClicked(${index})'>
+                杆号：${item.PoleName}<br>
+                上级杆：${item.UpperPole}<br>
+                刀闸：${item.DisconnectSwitch}<br>
+                开关：${item.CircuitBreaker}<br>
+                裸导：${item.BareConductor}<br>
+                经度：${item.longitude}<br>
+                纬度：${item.latitude}<br>
+                地址：${item.Address}<br>
+                备注：${item.Note}
+            </div>
+        </div>
+    </div>`;
+}
+
 // 更新地图上已有的标记点
 function updateMarkerOnMap(index, data) {
-    // 清除所有覆盖物重新渲染（简单方案）
     map.clearOverLays();
     
-    // 重新渲染所有标记
     datas.forEach((item, idx) => {
         const point = new T.LngLat(item.longitude, item.latitude);
         const marker = new T.Marker(point);
         map.addOverLay(marker);
-        
-        const sContent = `
-            <div style='margin:0px;'>
-                <div style='margin:10px 10px;'>
-                    ${getImgTag(item.ImgUrl)}
-                    <div style='margin:10px 0px 10px 120px;' onClick='infoClicked(${idx})'>
-                        杆号：${item.PoleName}<br>
-                        上级杆：${item.UpperPole}<br>
-                        刀闸：${item.DisconnectSwitch}<br>
-                        开关：${item.CircuitBreaker}<br>
-                        裸导：${item.BareConductor}<br>
-                        经度：${item.longitude}<br>
-                        纬度：${item.latitude}<br>
-                        地址：${item.Address}<br>
-                        备注：${item.Note}
-                    </div>
-                </div>
-            </div>`;
-        addClickHandler(sContent, marker);
+        addClickHandler(createInfoContent(item, idx), marker);
     });
     
-    // 重新显示线路（如果之前显示）
     if (linesVisible && lineObjects.length > 0) {
         lineObjects = [];
         showlinebuttonClicked();
@@ -134,25 +140,7 @@ function addMarkerToMap(index, data) {
     const point = new T.LngLat(data.longitude, data.latitude);
     const marker = new T.Marker(point);
     map.addOverLay(marker);
-    
-    const sContent = `
-        <div style='margin:0px;'>
-            <div style='margin:10px 10px;'>
-                ${getImgTag(data.ImgUrl)}
-                <div style='margin:10px 0px 10px 120px;' onClick='infoClicked(${index})'>
-                    杆号：${data.PoleName}<br>
-                    上级杆：${data.UpperPole}<br>
-                    刀闸：${data.DisconnectSwitch}<br>
-                    开关：${data.CircuitBreaker}<br>
-                    裸导：${data.BareConductor}<br>
-                    经度：${data.longitude}<br>
-                    纬度：${data.latitude}<br>
-                    地址：${data.Address}<br>
-                    备注：${data.Note}
-                </div>
-            </div>
-        </div>`;
-    addClickHandler(sContent, marker);
+    addClickHandler(createInfoContent(data, index), marker);
 }
 
 // 搜索功能
@@ -160,59 +148,33 @@ function searchbuttonClicked() {
     const keyWord = document.getElementById('keyWord').value;
     map.clearOverLays();
     
-    // 清除之前的线路
     if (typeof lineObjects !== 'undefined') {
         lineObjects.forEach(line => map.removeOverLay(line));
         lineObjects = [];
         linesVisible = false;
     }
     
-    // 重置设备筛选状态
     const deviceBtn = document.getElementById('device');
     deviceFilterActive = false;
     deviceBtn.style.backgroundColor = '#007bff';
     
-    const xhr = new XMLHttpRequest();
-    xhr.open("GET", "phpapi/index.php?title=" + encodeURIComponent(keyWord), true);
-    xhr.onreadystatechange = function() {
-        if (xhr.status === 200) {
-            const response = JSON.parse(xhr.responseText);
-            allDatas = response.data; // 保存原始数据
+    fetch(`phpapi/index.php?title=${encodeURIComponent(keyWord)}`)
+        .then(res => res.json())
+        .then(response => {
+            allDatas = response.data;
             datas = [...allDatas];
             
-            if (datas && datas.length > 0) {
+            if (datas?.length > 0) {
                 map.centerAndZoom(new T.LngLat(datas[0].longitude, datas[0].latitude), zoom);
-                
                 datas.forEach((item, index) => {
                     const point = new T.LngLat(item.longitude, item.latitude);
                     const marker = new T.Marker(point);
                     map.addOverLay(marker);
-                    
-                    const sContent = `
-                        <div style='margin:0px;'>
-                            <div style='margin:10px 10px;'>
-                                ${getImgTag(item.ImgUrl)}
-                                <div style='margin:10px 0px 10px 120px;' onClick='infoClicked(${index})'>
-                                    杆号：${item.PoleName}<br>
-                                    上级杆：${item.UpperPole}<br>
-                                    刀闸：${item.DisconnectSwitch}<br>
-                                    开关：${item.CircuitBreaker}<br>
-                                    裸导：${item.BareConductor}<br>
-                                    经度：${item.longitude}<br>
-                                    纬度：${item.latitude}<br>
-                                    地址：${item.Address}<br>
-                                    备注：${item.Note}
-                                </div>
-                            </div>
-                        </div>`;
-                    addClickHandler(sContent, marker);
+                    addClickHandler(createInfoContent(item, index), marker);
                 });
             }
-        } else {
-            console.error("请求失败，状态码：" + xhr.status);
-        }
-    };
-    xhr.send();
+        })
+        .catch(err => console.error("请求失败:", err));
 }
 
 function addClickHandler(content, marker) {
@@ -645,7 +607,6 @@ function devicebuttonClicked() {
 function renderMarkers() {
     map.clearOverLays();
     
-    // 清除线路
     if (typeof lineObjects !== 'undefined') {
         lineObjects.forEach(line => map.removeOverLay(line));
         lineObjects = [];
@@ -655,24 +616,6 @@ function renderMarkers() {
         const point = new T.LngLat(item.longitude, item.latitude);
         const marker = new T.Marker(point);
         map.addOverLay(marker);
-        
-        const sContent = `
-            <div style='margin:0px;'>
-                <div style='margin:10px 10px;'>
-                    ${getImgTag(item.ImgUrl)}
-                    <div style='margin:10px 0px 10px 120px;' onClick='infoClicked(${index})'>
-                        杆号：${item.PoleName}<br>
-                        上级杆：${item.UpperPole}<br>
-                        刀闸：${item.DisconnectSwitch}<br>
-                        开关：${item.CircuitBreaker}<br>
-                        裸导：${item.BareConductor}<br>
-                        经度：${item.longitude}<br>
-                        纬度：${item.latitude}<br>
-                        地址：${item.Address}<br>
-                        备注：${item.Note}
-                    </div>
-                </div>
-            </div>`;
-        addClickHandler(sContent, marker);
+        addClickHandler(createInfoContent(item, index), marker);
     });
 }

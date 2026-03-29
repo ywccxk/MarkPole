@@ -2,6 +2,7 @@
 
 基于天地图API开发的电力杆塔位置标记与管理系统，支持在地图上标注杆塔位置、查看设备信息、显示线路走向等功能。
 演示地址（非长期开放，有好想法的自觉提交分支）：https://markpole.ccxk.eu/
+
 ## 功能特点
 
 - **地图标注**：在地图上标记杆塔位置，支持点击添加新标记点
@@ -15,7 +16,7 @@
 ## 技术栈
 
 - **前端**：HTML + CSS + JavaScript
-- **地图API**：天地图（Tianditu）
+- **地图API**：天地图（Tianditu WMTS）
 - **后端**：PHP + MySQL
 - **图片处理**：前端Canvas压缩
 
@@ -39,41 +40,32 @@
 │   ├── post.php           # 提交/更新API
 │   ├── upload.php         # 图片上传API
 │   ├── config_api.php     # 配置获取API
-│   ├── tile_proxy.php     # 地图瓦片代理（隐藏Token）
-│   ├── api_proxy.php      # 天地图API代理（隐藏Token）
+│   └── api_proxy.php      # 天地图API代理（隐藏JS API Token）
 ├── install/
 │   └── index.php          # 安装向导
 └── img/                   # 图片存储目录
-│   └── thumb/             # 缩略图目录
-├── python/                # python脚本目录（获取无人机图片经纬度，上传数据）
-
+    └── thumb/             # 缩略图目录
+├── python/                # Python脚本目录（获取无人机图片经纬度，上传数据）
 ```
 
 ## 安全说明
 
 ### Token保护机制
 
-系统已实现天地图Token后端代理机制，保护您的API Token不被暴露在HTML源代码中：
+天地图Token由后端代理，不直接体现在html源码。但因天地图API，请求时仍会在Network中体现Token，建议部署后前往天地图APIKEY设置域名白名单：
 
-**两种代理保护：**
+**API代理保护：**
 
-1. **API代理** (`api_proxy.php`) - 加载天地图JavaScript API
-   - 工作流程：前端 → `./phpapi/api_proxy.php` → 天地图API
-   - 效果：HTML源代码中的 `<script src="...">` 不包含Token
-
-2. **瓦片代理** (`tile_proxy.php`) - 加载地图瓦片
-   - 工作流程：前端 → `./phpapi/tile_proxy.php?x=..&y=..&z=..` → 天地图API
-   - 效果：地图瓦片请求不暴露Token
+- **API代理** (`api_proxy.php`) - 加载天地图JavaScript API
+  - 工作流程：前端 → `./phpapi/api_proxy.php` → 天地图API
+  - 效果：HTML源代码中的 `<script src="...">` 不包含Token
 
 **Token存储位置：**
-- Token仅存储在服务器端 `config.php` 配置文件中
+- Token在PHP安装时存储在服务器端 `config.php` 配置文件中
 
-**优势：**
-- 用户通过"查看页面源代码"无法看到Token
-- 防止Token被恶意用户提取滥用
-- 瓦片代理支持多节点自动切换（t0/t1/t2），提高可用性
-
-**注意：** 开发者工具的Network面板中仍可能看到Token（因为浏览器需要用Token请求API），但这已是浏览器层面的正常行为，无法完全避免。
+**说明：**
+- 地图瓦片请求（WMTS）直接使用天地图服务，Token会在网络请求中传输
+- 开发者工具的Network面板中可能看到Token（浏览器层面的正常行为）
 
 ## 安装部署
 
@@ -132,26 +124,26 @@ return [
         'name' => 'your_database',
         'prefix' => 'map_',
     ],
-    
+
     // 站点配置
     'site' => [
         'name' => '电力杆塔标记系统',
         'url' => 'https://your-domain.com',
         'default_search' => ''
     ],
-    
+
     // 地图配置
     'map' => [
         'center_lng' => 119.28188,  // 默认经度
         'center_lat' => 26.64158,  // 默认纬度
         'zoom' => 18               // 默认缩放级别
     ],
-    
+
     // 天地图配置
     'tianditu' => [
         'tk' => 'your_token'
     ],
-    
+
     // 上传配置
     'upload' => [
         'max_size' => 10485760,  // 10MB
@@ -247,22 +239,6 @@ Fields:
 ```
 GET /phpapi/config_api.php
 ```
-
-### 地图瓦片代理（Token保护）
-
-```
-GET /phpapi/tile_proxy.php?x=瓦片X坐标&y=瓦片Y坐标&z=缩放级别&layer=图层类型
-```
-
-参数说明：
-- `x`, `y`, `z`：瓦片坐标和缩放级别（天地图自动填充）
-- `layer`：图层类型，可选值：
-  - `img`：影像底图（默认）
-  - `vec`：矢量地图
-  - `cia`：影像标注
-  - `cva`：矢量标注
-
-**注意**：此接口用于隐藏Token，前端通过此代理请求地图瓦片，无需暴露Token
 
 ## 常见问题
 
